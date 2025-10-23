@@ -42,16 +42,82 @@ UI/
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   OR
+   Use UV package manager
+   uv venv .venv
    ```
 2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
+   OR
+   uv add -r requirements.txt --active
    ```
 
 ## Usage
 ### Run the Application
 ```bash
-uvicorn src.main:app --reload
+uvicorn src.main:app --reload # For Backend
+streamlit run app.py # For Frontend
+```
+
+# Database Schema
+
+This schema defines two related tables — **projects** and **project_files** — used to manage project metadata and associated file details. Each project can have multiple files, and all updates automatically track timestamps via triggers.
+
+---
+
+## Tables
+
+### **projects**
+| Column | Type | Default | Description |
+|--------|------|----------|--------------|
+| project_id | uuid | `gen_random_uuid()` | Primary key |
+| project_name | text | — | Project name |
+| git_url | text | — | Git repository URL |
+| readme_doc | text | — | README contents |
+| created_at | timestamptz | `now()` | Creation timestamp |
+| updated_at | timestamptz | `now()` | Auto-updated on modification |
+
+**Trigger:** `projects_updated_at` → `handle_updated_at()`
+
+---
+
+### **project_files**
+| Column | Type | Default | Description |
+|--------|------|----------|--------------|
+| file_id | uuid | `gen_random_uuid()` | Primary key |
+| project_id | uuid | — | Foreign key → `projects(project_id)` (ON DELETE CASCADE) |
+| file_name | text | — | File name |
+| file_content | text | — | Full file content |
+| file_summary | text | — | Summary or extracted metadata |
+| created_at | timestamptz | `now()` | Creation timestamp |
+
+**Indexes:**
+- `project_files_project_id_idx`
+- `project_files_project_id_filename_idx`
+
+**Trigger:** `project_files_updated_at` → `handle_updated_at()`
+
+---
+
+## Relationship
+
+```mermaid
+erDiagram
+    projects ||--o{ project_files : "project_id"
+    projects {
+      uuid project_id PK
+      text project_name
+      text git_url
+      text readme_doc
+    }
+    project_files {
+      uuid file_id PK
+      uuid project_id FK
+      text file_name
+      text file_content
+      text file_summary
+    }
 ```
 ### API Endpoints
 - **Health Check**: `GET /`
@@ -85,3 +151,4 @@ Consider using Docker for containerization. Configure CI/CD pipelines for automa
 - **Limitations**: Currently supports only specific programming languages for summarization; further extensions may be needed for broader compatibility. 
 
 This README provides a concise overview of the project, its components, and how to get started. For further details, please refer to the code and comments within the modules.
+
